@@ -3,6 +3,7 @@ package com.isaakhanimann.journal.ui.tabs.settings
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,9 +14,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.StarBorder
@@ -42,6 +49,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -89,7 +98,9 @@ fun PreferencesScreen(
         saveAppLockEnabled = viewModel::saveAppLockEnabled,
         isEffectNotificationEnabled =
             viewModel.isEffectNotificationEnabledFlow.collectAsState().value,
-        saveEffectNotificationEnabled = viewModel::saveEffectNotificationEnabled
+        saveEffectNotificationEnabled = viewModel::saveEffectNotificationEnabled,
+        visibleTabRoutes = viewModel.visibleTabRoutesFlow.collectAsState().value,
+        saveTabVisible = viewModel::saveTabVisible
     )
 }
 
@@ -120,7 +131,9 @@ fun PreferencesScreen(
     isAppLockEnabled: Boolean,
     saveAppLockEnabled: (Boolean) -> Unit,
     isEffectNotificationEnabled: Boolean,
-    saveEffectNotificationEnabled: (Boolean) -> Unit
+    saveEffectNotificationEnabled: (Boolean) -> Unit,
+    visibleTabRoutes: Set<String> = TabVisibilityOption.entries.map { it.route }.toSet(),
+    saveTabVisible: (String, Boolean) -> Unit = { _, _ -> }
 ) {
     Scaffold(
         topBar = {
@@ -200,6 +213,11 @@ fun PreferencesScreen(
             }
 
             CardWithTitle(title = i18n("settings_ui"), innerPaddingHorizontal = 0.dp) {
+                VisibleTabsRow(
+                    visibleTabRoutes = visibleTabRoutes,
+                    saveTabVisible = saveTabVisible
+                )
+                HorizontalDivider()
                 PreferenceSwitchRow(
                     title = i18n("settings_use_24_hour_clock"),
                     checked = use24HourClock,
@@ -272,6 +290,104 @@ fun PreferencesScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * Mirrors [com.isaakhanimann.journal.ui.main.navigation.routers.TabRouter]'s five
+ * bottom-nav destinations. Routes are duplicated here as string literals (rather than
+ * importing TabRouter) to avoid a settings-UI -> navigation dependency; they must stay
+ * in sync with TabRouter's `route` values.
+ */
+private enum class TabVisibilityOption(val route: String, val labelKey: String, val icon: ImageVector) {
+    JOURNAL(route = "journalTab", labelKey = "journal", icon = Icons.Filled.Book),
+    STATISTICS(route = "statisticsTab", labelKey = "stats", icon = Icons.Filled.BarChart),
+    SUBSTANCES(route = "substancesTab", labelKey = "substances", icon = Icons.Filled.Medication),
+    SAFER_USE(route = "saferTab", labelKey = "safer", icon = Icons.Filled.HealthAndSafety),
+    SETTINGS(route = "settingsTab", labelKey = "settings", icon = Icons.Filled.Settings)
+}
+
+@Composable
+private fun VisibleTabsRow(
+    visibleTabRoutes: Set<String>,
+    saveTabVisible: (String, Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = horizontalPadding, vertical = 8.dp)
+    ) {
+        Text(text = i18n("settings_visible_tabs"))
+        Spacer(modifier = Modifier.size(4.dp))
+        Text(
+            text = i18n("settings_visible_tabs_description"),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.size(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            TabVisibilityOption.entries.forEach { option ->
+                val isVisible = option.route in visibleTabRoutes
+                // Prevent hiding the last remaining visible tab: with none left there
+                // would be no way to reach any screen, including back into Settings.
+                val isOnlyVisibleTab = isVisible && visibleTabRoutes.size == 1
+                TabVisibilityToggle(
+                    icon = option.icon,
+                    contentDescription = i18n(option.labelKey),
+                    isVisible = isVisible,
+                    enabled = !isOnlyVisibleTab,
+                    onToggle = { saveTabVisible(option.route, !isVisible) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TabVisibilityToggle(
+    icon: ImageVector,
+    contentDescription: String,
+    isVisible: Boolean,
+    enabled: Boolean,
+    onToggle: () -> Unit
+) {
+    val backgroundColor = if (isVisible) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = if (isVisible) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 2.dp)
+    ) {
+        IconButton(
+            onClick = onToggle,
+            enabled = enabled,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.4f))
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (enabled) contentColor else contentColor.copy(alpha = 0.6f)
+            )
+        }
+        Spacer(modifier = Modifier.size(4.dp))
+        Text(
+            text = contentDescription,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

@@ -171,6 +171,18 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    val visibleTabRoutesFlow = userPreferences.visibleTabRoutesFlow.stateIn(
+        initialValue = UserPreferences.ALL_TAB_ROUTES,
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000)
+    )
+
+    fun saveTabVisible(route: String, isVisible: Boolean) {
+        viewModelScope.launch {
+            userPreferences.saveTabVisible(route, isVisible)
+        }
+    }
+
     val achievementsFlow = userPreferences.achievementsFlow.stateIn(
         initialValue = emptyList(),
         scope = viewModelScope,

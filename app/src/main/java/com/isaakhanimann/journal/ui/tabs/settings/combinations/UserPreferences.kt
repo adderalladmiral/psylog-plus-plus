@@ -24,6 +24,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.isaakhanimann.journal.data.substances.AdministrationRoute
 import com.isaakhanimann.journal.ui.tabs.journal.experience.components.SavedTimeDisplayOption
 import com.isaakhanimann.journal.ui.utils.DateLocaleOption
@@ -59,6 +60,7 @@ class UserPreferences @Inject constructor(private val dataStore: DataStore<Prefe
         val KEY_USE_24_HOUR_CLOCK = booleanPreferencesKey("key_use_24_hour_clock")
         val KEY_STATS_BY_INGESTION_TIME = booleanPreferencesKey("key_stats_by_ingestion_time")
         val KEY_DATE_LOCALE_OPTION = stringPreferencesKey("key_date_locale_option")
+        val KEY_VISIBLE_TABS = stringSetPreferencesKey("key_visible_tabs")
     }
 
     suspend fun saveTimeDisplayOption(value: SavedTimeDisplayOption) {
@@ -289,5 +291,37 @@ class UserPreferences @Inject constructor(private val dataStore: DataStore<Prefe
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.KEY_DATE_LOCALE_OPTION] = value.name
         }
+    }
+
+    /** Routes of the bottom-nav tabs the user has chosen to keep visible. All tabs are shown until they hide one. */
+    val visibleTabRoutesFlow: Flow<Set<String>> = dataStore.data
+        .map { preferences ->
+            preferences[PreferencesKeys.KEY_VISIBLE_TABS] ?: ALL_TAB_ROUTES
+        }
+
+    suspend fun saveTabVisible(route: String, isVisible: Boolean) {
+        dataStore.edit { preferences ->
+            val current = preferences[PreferencesKeys.KEY_VISIBLE_TABS] ?: ALL_TAB_ROUTES
+            val updated = if (isVisible) {
+                current + route
+            } else {
+                current - route
+            }
+            // Never allow every tab to be hidden: that would leave no way to
+            // navigate anywhere, including back into this settings screen.
+            if (updated.isNotEmpty()) {
+                preferences[PreferencesKeys.KEY_VISIBLE_TABS] = updated
+            }
+        }
+    }
+
+    companion object {
+        val ALL_TAB_ROUTES: Set<String> = setOf(
+            "journalTab",
+            "statisticsTab",
+            "substancesTab",
+            "saferTab",
+            "settingsTab"
+        )
     }
 }

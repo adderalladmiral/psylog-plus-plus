@@ -219,13 +219,15 @@ fun MainScreen(viewModel: MainScreenViewModel = hiltViewModel()) {
                             )
                         }
                 ) {
-                    val tabs = listOf(
+                    val allTabs = listOf(
                         TabRouter.Statistics,
                         TabRouter.Journal,
                         TabRouter.Substances,
                         TabRouter.SaferUse,
                         TabRouter.Settings
                     )
+                    val visibleTabRoutes by viewModel.visibleTabRoutesFlow.collectAsState()
+                    val tabs = allTabs.filter { it.route in visibleTabRoutes }
                     tabs.forEach { tab ->
                         val isSelected =
                             currentDestination?.hierarchy?.any { it.route == tab.route } == true

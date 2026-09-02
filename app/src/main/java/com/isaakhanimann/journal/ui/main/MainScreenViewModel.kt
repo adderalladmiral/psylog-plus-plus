@@ -66,6 +66,12 @@ class MainScreenViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000)
     )
 
+    val visibleTabRoutesFlow: StateFlow<Set<String>> = userPreferences.visibleTabRoutesFlow.stateIn(
+        initialValue = UserPreferences.ALL_TAB_ROUTES,
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000)
+    )
+
     // Unlock state lives for the process lifetime: once authenticated, the app stays
     // unlocked until it is killed. Reset when the lock is disabled by the user.
     private val _isUnlocked = MutableStateFlow(false)
